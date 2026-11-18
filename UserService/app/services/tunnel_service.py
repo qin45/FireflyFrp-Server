@@ -95,7 +95,7 @@ async def _online_domains(frps: FrpsAPI) -> set[str]:
 async def _pick_port(
     db: AsyncSession, settings: Settings, online_ports: set[int]
 ) -> int:
-    used = set(
+    reserved = set(
         (
             await db.scalars(
                 select(PortReservation.remote_port).where(
@@ -107,6 +107,24 @@ async def _pick_port(
             )
         ).all()
     )
+    # Also exclude ports held by existing tunnel rows. This matters for data
+    # created by older versions or manual inserts that do not have a matching
+    # port_reservations row; the unique index on tunnels.remote_port would
+    # otherwise reject the insert and force a retry.
+    tunnel_ports = set(
+        (
+            await db.scalars(
+                select(Tunnel.remote_port).where(
+                    Tunnel.remote_port.is_not(None),
+                    Tunnel.remote_port.between(
+                        settings.limits.port_range_start,
+                        settings.limits.port_range_end,
+                    ),
+                )
+            )
+        ).all()
+    )
+    used = reserved | tunnel_ports
     candidates = [
         port
         for port in range(
@@ -140,10 +158,16 @@ async def create_tunnel(
             status_code=400, detail="HTTPS tunnels are disabled on this node"
         )
 
+    # Capture scalar fields before any rollback. SQLAlchemy expires loaded ORM
+    # objects on rollback, and touching user.id afterwards would attempt lazy
+    # IO outside the async greenlet (MissingGreenlet).
+    user_id = user.id
+    username = user.username
+
     count = await db.scalar(
         select(func.count())
         .select_from(Tunnel)
-        .where(Tunnel.user_id == user.id, Tunnel.status != "deleted")
+        .where(Tunnel.user_id == user_id, Tunnel.status != "deleted")
     )
     if (count or 0) >= settings.limits.max_tunnels_per_user:
         raise HTTPException(
@@ -182,7 +206,7 @@ async def create_tunnel(
 
         tunnel = Tunnel(
             id=tunnel_id,
-            user_id=user.id,
+            user_id=user_id,
             name=request.name,
             type=request.type,
             local_ip=request.local_ip,
@@ -199,7 +223,7 @@ async def create_tunnel(
         try:
             await db.commit()
             await db.refresh(tunnel)
-            return tunnel, token, build_frpc_config(tunnel, token, user.username, settings)
+            return tunnel, token, build_frpc_config(tunnel, token, username, settings)
         except IntegrityError as exc:
             last_error = exc
             await db.rollback()
