@@ -31,6 +31,7 @@ async def test_create_tunnel_survives_integrity_retry(client, app, monkeypatch):
                 status="inactive",
             )
         )
+        await db.flush()
         db.add(PortReservation(remote_port=20000, tunnel_id=existing_id))
         await db.commit()
 

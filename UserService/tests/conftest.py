@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import event
 
+from app import db as db_module
 from app.config import (
     DatabaseSettings,
     FrpsSettings,
@@ -50,6 +52,13 @@ async def app(tmp_path):
     )
     application = create_app(settings, start_poller=False)
     application.state.frps = FakeFrps()
+
+    # SQLite does not enforce foreign keys by default. Enable them so tests
+    # catch insert-order bugs that MySQL would reject in production.
+    @event.listens_for(db_module.engine.sync_engine, "connect")
+    def _enable_sqlite_foreign_keys(dbapi_connection, _record):
+        dbapi_connection.execute("PRAGMA foreign_keys=ON")
+
     await init_db()
     yield application
     await close_engine()

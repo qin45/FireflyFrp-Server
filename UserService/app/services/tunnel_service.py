@@ -218,9 +218,16 @@ async def create_tunnel(
             status="inactive",
         )
         db.add(tunnel)
-        if remote_port is not None:
-            db.add(PortReservation(remote_port=remote_port, tunnel_id=tunnel_id))
         try:
+            # Insert the tunnel before the reservation. Without an ORM
+            # relationship, SQLAlchemy may order the two INSERTs alphabetically
+            # and MySQL rejects port_reservations because its FK target does
+            # not exist yet.
+            await db.flush()
+            if remote_port is not None:
+                db.add(
+                    PortReservation(remote_port=remote_port, tunnel_id=tunnel_id)
+                )
             await db.commit()
             await db.refresh(tunnel)
             return tunnel, token, build_frpc_config(tunnel, token, username, settings)
