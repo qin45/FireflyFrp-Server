@@ -34,6 +34,7 @@ async def user_info(
         {
             "max_tunnels": settings.limits.max_tunnels_per_user,
             "max_active_tunnels": settings.limits.max_active_tunnels,
+            "enabled_tunnel_types": settings.limits.enabled_tunnel_types(),
             "tunnels": tunnel_items,
         }
     )

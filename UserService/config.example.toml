@@ -37,3 +37,7 @@ max_active_tunnels = 3
 default_rate_limit_mbps = 10
 default_traffic_quota_bytes = 0   # new users must be topped up by an admin
 traffic_poll_interval_seconds = 2
+# Set to false on nodes that do not expose frps vhost HTTP/HTTPS ports.
+# Disabled types cannot be created or started.
+enable_http_tunnels = true
+enable_https_tunnels = true

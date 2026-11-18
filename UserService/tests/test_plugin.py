@@ -122,6 +122,20 @@ async def test_http_tunnel_domain_validation(client):
     assert result["reject"] is False
 
 
+async def test_disabled_http_tunnel_is_rejected_on_login(client, app):
+    user = await register(client, "carol")
+    await grant_traffic(client, user["id"], 10_000_000)
+    token = await login(client, "carol")
+    tunnel = await create_tunnel(client, token, "http", name="web", local_port=8080)
+
+    app.state.settings.limits.enable_http_tunnels = False
+    result = await plugin_call(
+        client, "Login", login_content("carol", tunnel, tunnel["token"])
+    )
+    assert result["reject"] is True
+    assert "disabled" in result["reject_reason"]
+
+
 async def test_invalid_token_rejected(client):
     user = await register(client)
     await grant_traffic(client, user["id"], 1_000_000)

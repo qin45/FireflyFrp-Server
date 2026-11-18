@@ -65,6 +65,32 @@ async def test_tunnel_limit_and_delete(client):
     await create_tunnel(client, token, "http", name="again", local_port=8080)
 
 
+async def test_http_https_tunnels_can_be_disabled(client, app):
+    await register(client)
+    token = await login(client)
+    app.state.settings.limits.enable_http_tunnels = False
+    app.state.settings.limits.enable_https_tunnels = False
+
+    for tunnel_type in ("http", "https"):
+        response = await client.post(
+            "/api/v1/tunnels",
+            json={
+                "type": tunnel_type,
+                "name": "web",
+                "local_ip": "127.0.0.1",
+                "local_port": 8080,
+            },
+            headers=auth(token),
+        )
+        assert response.status_code == 400
+        assert "disabled" in response.json()["detail"]
+
+    await create_tunnel(client, token, "tcp")
+
+    response = await client.get("/api/v1/user", headers=auth(token))
+    assert response.json()["enabled_tunnel_types"] == ["tcp", "udp"]
+
+
 async def test_cannot_delete_other_users_tunnel(client):
     await register(client, "alice")
     alice_token = await login(client, "alice")

@@ -48,6 +48,18 @@ class LimitSettings:
     default_rate_limit_mbps: int = 10
     default_traffic_quota_bytes: int = 0
     traffic_poll_interval_seconds: int = 2
+    # Some frps deployments do not expose vhost HTTP/HTTPS ports. Turn these
+    # off to reject creation and startup of HTTP/HTTPS tunnels.
+    enable_http_tunnels: bool = True
+    enable_https_tunnels: bool = True
+
+    def enabled_tunnel_types(self) -> list[str]:
+        types = ["tcp", "udp"]
+        if self.enable_http_tunnels:
+            types.append("http")
+        if self.enable_https_tunnels:
+            types.append("https")
+        return types
 
 
 @dataclass
@@ -70,6 +82,14 @@ def _list_str(value: object, default: list[str]) -> list[str]:
         return default
     if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
         raise ValueError("expected a list of strings")
+    return value
+
+
+def _bool(value: object, default: bool, name: str) -> bool:
+    if value is None:
+        return default
+    if not isinstance(value, bool):
+        raise ValueError(f"{name} must be true or false")
     return value
 
 
@@ -119,6 +139,12 @@ def load_settings(path: str | Path | None = None) -> Settings:
             ),
             traffic_poll_interval_seconds=int(
                 limits.get("traffic_poll_interval_seconds", 2)
+            ),
+            enable_http_tunnels=_bool(
+                limits.get("enable_http_tunnels"), True, "limits.enable_http_tunnels"
+            ),
+            enable_https_tunnels=_bool(
+                limits.get("enable_https_tunnels"), True, "limits.enable_https_tunnels"
             ),
         ),
     )

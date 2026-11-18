@@ -74,6 +74,13 @@ async def _active_tunnel_count(
     return int(count or 0)
 
 
+def _ensure_tunnel_type_enabled(settings: Settings, tunnel: Tunnel) -> None:
+    if tunnel.type == "http" and not settings.limits.enable_http_tunnels:
+        _reject("HTTP tunnels are disabled on this node")
+    if tunnel.type == "https" and not settings.limits.enable_https_tunnels:
+        _reject("HTTPS tunnels are disabled on this node")
+
+
 def _validate_proxy(user: User, tunnel: Tunnel, content: dict[str, Any]) -> str:
     proxy_type = str(content.get("proxy_type") or "")
     if proxy_type != tunnel.type:
@@ -128,6 +135,7 @@ async def login(db: AsyncSession, settings: Settings, content: dict[str, Any]) -
     tunnel_id = str(content.get("client_id") or metas.get("tunnel_id") or "")
     token = str(metas.get("token") or "")
     user, tunnel = await _query_user_tunnel(db, username, tunnel_id, token)
+    _ensure_tunnel_type_enabled(settings, tunnel)
     _ensure_user_active(user)
     active = await _active_tunnel_count(db, user.id, tunnel.id)
     if active >= settings.limits.max_active_tunnels:
@@ -145,6 +153,7 @@ async def new_proxy(
     run_id = str(user_info.get("run_id") or "")
 
     user, tunnel = await _query_user_tunnel(db, username, tunnel_id, token)
+    _ensure_tunnel_type_enabled(settings, tunnel)
     _ensure_user_active(user)
     proxy_name = _validate_proxy(user, tunnel, content)
 

@@ -3,6 +3,16 @@
 FastAPI backend for QZ-FRP: user accounts, tunnels, frps plugin authentication,
 traffic accounting, quota enforcement and shared bandwidth limits.
 
+中文文档（含完整配置说明）：[README_zh.md](README_zh.md)
+
+HTTP/HTTPS tunnels can be disabled on nodes that do not expose vhost ports:
+
+```toml
+[limits]
+enable_http_tunnels = false
+enable_https_tunnels = false
+```
+
 ## Requirements
 
 - Python 3.11+

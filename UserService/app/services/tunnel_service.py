@@ -131,6 +131,14 @@ async def create_tunnel(
 ) -> tuple[Tunnel, str, str]:
     if request.type not in TUNNEL_TYPES:
         raise HTTPException(status_code=400, detail="invalid tunnel type")
+    if request.type == "http" and not settings.limits.enable_http_tunnels:
+        raise HTTPException(
+            status_code=400, detail="HTTP tunnels are disabled on this node"
+        )
+    if request.type == "https" and not settings.limits.enable_https_tunnels:
+        raise HTTPException(
+            status_code=400, detail="HTTPS tunnels are disabled on this node"
+        )
 
     count = await db.scalar(
         select(func.count())
