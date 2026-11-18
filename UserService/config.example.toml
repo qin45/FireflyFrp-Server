@@ -1,0 +1,39 @@
+[server]
+host = "0.0.0.0"
+port = 8080
+admin_token = "replace-with-a-long-random-admin-token"
+session_ttl_hours = 168
+cors_origins = ["http://localhost:3000"]
+# Keep true for local development. In production use `alembic upgrade head`
+# and set this to false.
+auto_create_tables = false
+
+[database]
+# Production (MySQL):
+url = "mysql+aiomysql://qz:password@127.0.0.1:3306/qz_frp?charset=utf8mb4"
+# Local development without MySQL:
+# url = "sqlite+aiosqlite:///./qz_frp.db"
+
+[frps]
+api_url = "http://127.0.0.1:7500"
+api_user = "admin"
+api_password = "replace-with-frps-dashboard-password"
+public_host = "frp.example.com"
+bind_port = 7000
+auth_token = "shared-frps-token"
+subdomain_host = "frp.example.com"   # must equal frps subDomainHost
+vhost_http_port = 80
+vhost_https_port = 443
+plugin_path_secret = "replace-with-a-random-plugin-secret"
+# Keep loopback for same-host deployments. Add the frps egress IP/CIDR when
+# frps runs on another machine.
+plugin_trusted_cidrs = ["127.0.0.1/32", "::1/128"]
+
+[limits]
+port_range_start = 20000
+port_range_end = 30000
+max_tunnels_per_user = 10
+max_active_tunnels = 3
+default_rate_limit_mbps = 10
+default_traffic_quota_bytes = 0   # new users must be topped up by an admin
+traffic_poll_interval_seconds = 2
