@@ -12,6 +12,15 @@ from tests.helpers import (
 )
 
 
+async def test_plugin_health_probe(client):
+    response = await client.get("/internal/frps/plugin/plugin-secret/health")
+    assert response.status_code == 200
+    assert response.json()["ok"] is True
+
+    response = await client.get("/internal/frps/plugin/wrong-secret/health")
+    assert response.status_code == 404
+
+
 async def test_quota_bandwidth_and_ping(client):
     user = await register(client)
     token = await login(client)

@@ -41,6 +41,37 @@ def _is_trusted(ip_text: str, cidrs: list[str]) -> bool:
     return False
 
 
+def _authorize(secret: str, request: Request, settings: Settings) -> str:
+    ip_text = _client_ip(request)
+    if not settings.frps.plugin_path_secret or not hmac.compare_digest(
+        secret, settings.frps.plugin_path_secret
+    ):
+        logger.warning(
+            "frps plugin rejected: bad path secret from %s",
+            ip_text or "unknown",
+        )
+        raise HTTPException(status_code=404, detail="not found")
+    if not _is_trusted(ip_text, settings.frps.plugin_trusted_cidrs):
+        logger.warning(
+            "frps plugin rejected: untrusted source ip %s; trusted=%s",
+            ip_text or "unknown",
+            settings.frps.plugin_trusted_cidrs,
+        )
+        raise HTTPException(status_code=403, detail="source ip is not trusted")
+    return ip_text
+
+
+@router.get("/internal/frps/plugin/{secret}/health")
+async def frps_plugin_health(
+    secret: str,
+    request: Request,
+    settings: Settings = Depends(get_settings),
+) -> dict:
+    """Small probe for frps-side plugin address/secret/CIDR diagnostics."""
+    ip_text = _authorize(secret, request, settings)
+    return {"ok": True, "source": ip_text}
+
+
 @router.post("/internal/frps/plugin/{secret}")
 async def frps_plugin(
     secret: str,
@@ -48,12 +79,7 @@ async def frps_plugin(
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ) -> JSONResponse:
-    if not settings.frps.plugin_path_secret or not hmac.compare_digest(
-        secret, settings.frps.plugin_path_secret
-    ):
-        raise HTTPException(status_code=404, detail="not found")
-    if not _is_trusted(_client_ip(request), settings.frps.plugin_trusted_cidrs):
-        raise HTTPException(status_code=403, detail="source ip is not trusted")
+    ip_text = _authorize(secret, request, settings)
 
     try:
         payload = await request.json()
@@ -62,6 +88,10 @@ async def frps_plugin(
 
     op = request.query_params.get("op") or payload.get("op") or ""
     content = payload.get("content") or {}
+    if op == "Ping":
+        logger.debug("frps plugin op=%s source=%s", op, ip_text)
+    else:
+        logger.info("frps plugin op=%s source=%s", op, ip_text)
     if op not in SUPPORTED_OPS:
         return JSONResponse(
             {"reject": True, "reject_reason": f"unsupported op: {op}"}
@@ -71,6 +101,7 @@ async def frps_plugin(
         result = await plugin_service.handle(db, settings, str(op), content)
         return JSONResponse(result)
     except PluginReject as exc:
+        logger.info("frps plugin %s rejected: %s", op, exc.reason)
         return JSONResponse({"reject": True, "reject_reason": exc.reason})
     except Exception:  # noqa: BLE001 - fail closed
         logger.exception("frps plugin operation %s failed", op)

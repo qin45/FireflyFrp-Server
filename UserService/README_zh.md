@@ -263,6 +263,39 @@ location /internal/ {
 }
 ```
 
+> **frps 不能通过 nginx 访问插件路径。** nginx 的 `deny /internal/` 会连 frps 的插件请求一起拒绝。frps 的 `addr` 必须指向 uvicorn 的**直连端口**（例如 nginx 监听 5080、uvicorn 实际监听 127.0.0.1:8000，则填 `127.0.0.1:8000`），而不是公网 nginx 端口。
+
+### 插件连通性自检
+
+部署最新 `app/routers/frps_plugin.py` 后，在 frps 所在机器上执行（替换直连端口和 secret）：
+
+```bash
+curl -i "http://127.0.0.1:<uvicorn直连端口>/internal/frps/plugin/<plugin_secret>/health"
+```
+
+| 返回 | 含义 |
+|---|---|
+| `200 {"ok":true,"source":"127.0.0.1"}` | 地址和 secret 正确 |
+| `404` | 路径 secret 与后端 `plugin_path_secret` 不一致 |
+| `403` | 来源 IP 不在 `plugin_trusted_cidrs` |
+| 连接失败 | 端口/监听地址不对，或 frps 走了 nginx 的 `/internal/` 拦截 |
+
+如果 frps 在另一台机器上：
+
+- 把 `addr` 改成后端可达的内网/公网地址和**直连端口**；
+- 把 frps 的出网 IP/CIDR 加入后端 `plugin_trusted_cidrs`；
+- 只对 frps IP 开放该端口。
+
+改完 frps 的 `httpPlugins` 需要重启 frps；改后端配置需要重启用户服务。
+
+如果 frpc 日志出现：
+
+```text
+send Login request to plugin error
+```
+
+说明 frps 调用插件失败（不是 frpc 配置问题）。先跑上面的 `/health` 检查，再查看 frps 日志中的具体 HTTP 状态码。
+
 ---
 
 ## 6. 隧道类型与端口/域名规则
