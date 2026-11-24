@@ -1,6 +1,6 @@
-# QZ-FRP 用户服务后端
+# FireflyFrp 用户服务后端
 
-QZ-FRP 用户服务是一个基于 **FastAPI + SQLAlchemy async + MySQL** 的后端，配合 QZ-FRP 的 frps fork 使用，提供：
+FireflyFrp 用户服务是一个基于 **FastAPI + SQLAlchemy async + MySQL** 的后端，配合 FireflyFrp 的 frps fork 使用，提供：
 
 - 用户注册、登录、修改密码
 - 隧道创建/删除/查询（TCP、UDP、HTTP、HTTPS）
@@ -69,7 +69,7 @@ UserService/
 
 - Python 3.11+
 - MySQL 8.0+（生产）；SQLite 可用于本地开发
-- 已部署 QZ-FRP frps fork，并开启：
+- 已部署 FireflyFrp frps fork，并开启：
   - frps Admin API（`webServer`）
   - frps 服务端插件
   - `trafficStatsUpdateIntervalSeconds = 1`
@@ -78,7 +78,7 @@ UserService/
 ### 3.2 安装
 
 ```bash
-cd QZ-FRPS/UserService
+cd FireflyFrp-Server/UserService
 python -m venv .venv
 . .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
@@ -97,7 +97,7 @@ alembic upgrade head
 
 ```toml
 [database]
-url = "sqlite+aiosqlite:///./qz_frp.db"
+url = "sqlite+aiosqlite:///./fireflyfrp.db"
 
 [server]
 auto_create_tables = true
@@ -134,7 +134,7 @@ python run.py
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
-| `url` | string | `"sqlite+aiosqlite:///./qz_frp.db"` | SQLAlchemy async 数据库 URL。生产 MySQL 示例：`mysql+aiomysql://qz:password@127.0.0.1:3306/qz_frp?charset=utf8mb4`。 |
+| `url` | string | `"sqlite+aiosqlite:///./fireflyfrp.db"` | SQLAlchemy async 数据库 URL。生产 MySQL 示例：`mysql+aiomysql://fireflyfrp:password@127.0.0.1:3306/fireflyfrp?charset=utf8mb4`。 |
 
 注意：
 
@@ -194,7 +194,7 @@ cors_origins = ["https://panel.example.com"]
 auto_create_tables = false
 
 [database]
-url = "mysql+aiomysql://qz:password@127.0.0.1:3306/qz_frp?charset=utf8mb4"
+url = "mysql+aiomysql://fireflyfrp:password@127.0.0.1:3306/fireflyfrp?charset=utf8mb4"
 
 [frps]
 api_url = "http://127.0.0.1:7500"
@@ -242,7 +242,7 @@ webServer.user = "admin"
 webServer.password = "replace-with-frps-password"
 
 [[httpPlugins]]
-name = "qz-user-service"
+name = "fireflyfrp-user-service"
 addr = "127.0.0.1:8080"             # 用户服务地址
 path = "/internal/frps/plugin/replace-with-a-random-plugin-secret"
 ops = ["Login", "NewProxy", "Ping", "NewUserConn", "CloseProxy"]
@@ -494,15 +494,15 @@ python run.py
 
 ```ini
 [Unit]
-Description=QZ-FRP User Service
+Description=FireflyFrp User Service
 After=network.target mysql.service
 
 [Service]
 Type=simple
-User=qzfrp
-WorkingDirectory=/opt/qz-frp/UserService
-Environment=QZ_CONFIG=/opt/qz-frp/UserService/config.toml
-ExecStart=/opt/qz-frp/UserService/.venv/bin/python run.py
+User=fireflyfrp
+WorkingDirectory=/opt/fireflyfrp/UserService
+Environment=FIREFLYFRP_CONFIG=/opt/fireflyfrp/UserService/config.toml
+ExecStart=/opt/fireflyfrp/UserService/.venv/bin/python run.py
 Restart=always
 RestartSec=3
 
@@ -530,7 +530,7 @@ WantedBy=multi-user.target
 ## 12. 测试
 
 ```bash
-cd QZ-FRPS/UserService
+cd FireflyFrp-Server/UserService
 .venv/Scripts/python.exe -m pytest -q
 .venv/Scripts/ruff.exe check app tests run.py
 ```

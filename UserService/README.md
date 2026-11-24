@@ -1,6 +1,6 @@
-# QZ-FRP User Service
+# FireflyFrp User Service
 
-FastAPI backend for QZ-FRP: user accounts, tunnels, frps plugin authentication,
+FastAPI backend for FireflyFrp: user accounts, tunnels, frps plugin authentication,
 traffic accounting, quota enforcement and shared bandwidth limits.
 
 中文文档（含完整配置说明）：[README_zh.md](README_zh.md)
@@ -17,7 +17,7 @@ enable_https_tunnels = false
 
 - Python 3.11+
 - MySQL 8.0+ for production (SQLite is supported for local development/tests)
-- The QZ-FRP frps fork with live traffic counters and the kick/bandwidth admin APIs
+- The FireflyFrp frps fork with live traffic counters and the kick/bandwidth admin APIs
 
 ## Setup
 
@@ -44,7 +44,7 @@ by a MySQL advisory lock. If you prefer the uvicorn CLI, pass
 For Alembic, the database URL is read from `config.toml`, or can be overridden:
 
 ```bash
-DATABASE_URL="mysql+pymysql://qz:password@127.0.0.1:3306/qz_frp" alembic upgrade head
+DATABASE_URL="mysql+pymysql://qz:password@127.0.0.1:3306/fireflyfrp" alembic upgrade head
 ```
 
 ## frps configuration
@@ -62,7 +62,7 @@ webServer.password = "..."
 auth.token = "shared-frps-token"
 
 [[httpPlugins]]
-name = "qz-user-service"
+name = "fireflyfrp-user-service"
 addr = "127.0.0.1:8080"
 path = "/internal/frps/plugin/replace-with-a-random-plugin-secret"
 ops = ["Login", "NewProxy", "Ping", "NewUserConn", "CloseProxy"]

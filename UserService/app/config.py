@@ -19,7 +19,7 @@ class ServerSettings:
 
 @dataclass
 class DatabaseSettings:
-    url: str = "sqlite+aiosqlite:///./qz_frp.db"
+    url: str = "sqlite+aiosqlite:///./fireflyfrp.db"
 
 
 @dataclass
@@ -94,7 +94,7 @@ def _bool(value: object, default: bool, name: str) -> bool:
 
 
 def load_settings(path: str | Path | None = None) -> Settings:
-    config_path = Path(path or os.environ.get("QZ_CONFIG", "config.toml"))
+    config_path = Path(path or os.environ.get("FIREFLYFRP_CONFIG", "config.toml"))
     with config_path.open("rb") as f:
         data = tomllib.load(f)
 
