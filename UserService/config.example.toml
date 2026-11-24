@@ -8,6 +8,15 @@ cors_origins = ["http://localhost:3000"]
 # and set this to false.
 auto_create_tables = false
 
+# Serve the API and frps plugin endpoint over HTTPS. Set port to 8443/443
+# as appropriate. If no certificate exists, tls_self_signed = true generates
+# one on startup; otherwise provide both cert and key paths.
+enable_https = false
+tls_self_signed = false
+tls_cert_file = "certs/server.crt"
+tls_key_file = "certs/server.key"
+tls_hosts = ["localhost", "127.0.0.1"]
+
 [database]
 # Production (MySQL):
 url = "mysql+aiomysql://fireflyfrp:password@127.0.0.1:3306/fireflyfrp?charset=utf8mb4"

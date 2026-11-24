@@ -15,6 +15,15 @@ class ServerSettings:
     cors_origins: list[str] = field(default_factory=list)
     # Convenient for local development. Set false in production and use Alembic.
     auto_create_tables: bool = True
+    # Serve the user API (and the frps plugin endpoint) over HTTPS when enabled.
+    enable_https: bool = False
+    tls_cert_file: str = ""
+    tls_key_file: str = ""
+    # Generate a self-signed certificate at the configured paths when the
+    # certificate/key files do not exist.
+    tls_self_signed: bool = False
+    # Subject alternative names for a generated self-signed certificate.
+    tls_hosts: list[str] = field(default_factory=lambda: ["localhost", "127.0.0.1"])
 
 
 @dataclass
@@ -111,6 +120,15 @@ def load_settings(path: str | Path | None = None) -> Settings:
             session_ttl_hours=int(server.get("session_ttl_hours", 168)),
             cors_origins=_list_str(server.get("cors_origins"), []),
             auto_create_tables=bool(server.get("auto_create_tables", True)),
+            enable_https=_bool(server.get("enable_https"), False, "server.enable_https"),
+            tls_cert_file=str(server.get("tls_cert_file", "")).strip(),
+            tls_key_file=str(server.get("tls_key_file", "")).strip(),
+            tls_self_signed=_bool(
+                server.get("tls_self_signed"), False, "server.tls_self_signed"
+            ),
+            tls_hosts=_list_str(
+                server.get("tls_hosts"), ["localhost", "127.0.0.1"]
+            ),
         ),
         database=DatabaseSettings(url=str(database.get("url", ""))),
         frps=FrpsSettings(

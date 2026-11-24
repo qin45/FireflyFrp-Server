@@ -39,6 +39,7 @@ UserService/
     main.py                 # uvicorn 入口
     factory.py              # FastAPI 应用工厂、lifespan、poller
     config.py               # 读取 config.toml
+    tls.py                  # HTTPS 证书校验与自签证书生成
     db.py                   # async engine/session
     models.py               # SQLAlchemy ORM
     schemas.py              # Pydantic 请求模型
@@ -124,11 +125,16 @@ python run.py
 | 配置项 | 类型 | 默认值 | 说明 |
 |---|---|---|---|
 | `host` | string | `"0.0.0.0"` | 用户服务监听地址。`0.0.0.0` 表示所有网卡；生产建议只监听内网或由 nginx 反代。 |
-| `port` | int | `8080` | 用户服务 HTTP 端口，同时也是 frps 插件访问的端口。 |
+| `port` | int | `8080` | 用户服务监听端口，同时也是 frps 插件访问的端口。启用 HTTPS 时通常改为 `8443` 或 `443`。 |
 | `admin_token` | string | 无（必填） | 管理员接口的 Bearer Token。必须设置为足够长的随机字符串。 |
 | `session_ttl_hours` | int | `168` | 用户登录 session 有效期（小时），默认 7 天。 |
 | `cors_origins` | list[string] | `[]` | 允许跨域的前端源，例如 `["https://panel.example.com"]`；为空表示不启用 CORS。 |
 | `auto_create_tables` | bool | `true` | 启动时是否用 SQLAlchemy 自动建表。**生产使用 Alembic 时设为 `false`**，避免绕过迁移版本管理。 |
+| `enable_https` | bool | `false` | 是否让用户服务（包括 frps 插件入口）使用 HTTPS。启用后 frps 插件地址也必须改成 `https://`。 |
+| `tls_cert_file` | string | `""` | TLS 证书路径（PEM）。与 `tls_key_file` 同时配置。 |
+| `tls_key_file` | string | `""` | TLS 私钥路径（PEM）。 |
+| `tls_self_signed` | bool | `false` | 证书/私钥不存在时是否自动生成自签证书。 |
+| `tls_hosts` | list[string] | `["localhost", "127.0.0.1"]` | 自签证书的 SAN 列表；客户端使用域名/IP 访问时必须匹配，例如 `["frp.example.com", "127.0.0.1"]`。 |
 
 ### 4.2 `[database]`
 
@@ -192,6 +198,11 @@ admin_token = "replace-with-a-long-random-admin-token"
 session_ttl_hours = 168
 cors_origins = ["https://panel.example.com"]
 auto_create_tables = false
+enable_https = false
+tls_self_signed = false
+tls_cert_file = "certs/server.crt"
+tls_key_file = "certs/server.key"
+tls_hosts = ["localhost", "127.0.0.1"]
 
 [database]
 url = "mysql+aiomysql://fireflyfrp:password@127.0.0.1:3306/fireflyfrp?charset=utf8mb4"
@@ -220,6 +231,44 @@ traffic_poll_interval_seconds = 2
 enable_http_tunnels = false
 enable_https_tunnels = false
 ```
+
+### 4.6 HTTPS 与自签证书
+
+把 `server.port` 改为 `8443`（或其它 443 端口），并启用：
+
+```toml
+[server]
+port = 8443
+enable_https = true
+tls_cert_file = "certs/server.crt"
+tls_key_file = "certs/server.key"
+tls_self_signed = false
+tls_hosts = ["frp.example.com", "127.0.0.1"]
+```
+
+- 已有可信证书：设置 `tls_cert_file` / `tls_key_file`，保持 `tls_self_signed = false`。
+- 没有证书：设置 `tls_self_signed = true`。启动时如果文件不存在，会自动生成自签证书到配置的路径。
+- 也可以手动生成，然后按需分发证书：
+
+```bash
+.venv/Scripts/python.exe -m app.tls \
+  --host frp.example.com \
+  --host 127.0.0.1 \
+  --cert certs/server.crt \
+  --key certs/server.key
+```
+
+- `tls_hosts` 必须包含客户端实际使用的域名/IP，否则客户端会提示证书主机名不匹配。
+- 启用 HTTPS 后，用户 API 和 frps 插件入口都只走 HTTPS。frps 的 `[[httpPlugins]]` 需要改成：
+
+```toml
+[[httpPlugins]]
+addr = "https://127.0.0.1:8443"
+path = "/internal/frps/plugin/<plugin_secret>"
+tlsVerify = false   # 使用自签证书时关闭；使用可信证书时建议改为 true
+```
+
+- 客户端连接自签证书时会提示是否信任；信任后保存在本机。也可以在客户端的 `client.config.json` 中通过 `trustedCertificates` 预置证书文件或 SHA-256 指纹。
 
 ---
 
@@ -271,6 +320,12 @@ location /internal/ {
 
 ```bash
 curl -i "http://127.0.0.1:<uvicorn直连端口>/internal/frps/plugin/<plugin_secret>/health"
+```
+
+启用 HTTPS 后改为 `https://`；自签证书本地检查可加 `-k`：
+
+```bash
+curl -k -i "https://127.0.0.1:<uvicorn直连端口>/internal/frps/plugin/<plugin_secret>/health"
 ```
 
 | 返回 | 含义 |

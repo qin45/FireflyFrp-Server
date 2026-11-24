@@ -47,6 +47,22 @@ For Alembic, the database URL is read from `config.toml`, or can be overridden:
 DATABASE_URL="mysql+pymysql://qz:password@127.0.0.1:3306/fireflyfrp" alembic upgrade head
 ```
 
+## HTTPS
+
+Set `server.enable_https = true`, point `server.tls_cert_file` and
+`server.tls_key_file` at a PEM cert/key, and use an HTTPS port (for example
+`8443`). If no certificate exists, set `server.tls_self_signed = true` to
+generate one at startup, or generate it explicitly:
+
+```bash
+python -m app.tls --host frp-api.example.com --host 127.0.0.1 \
+  --cert certs/server.crt --key certs/server.key
+```
+
+`server.tls_hosts` controls the SAN list. When the user service uses HTTPS,
+the frps `[[httpPlugins]]` address must be `https://...`; for a self-signed
+certificate set `tlsVerify = false` (or install the certificate as trusted).
+
 ## frps configuration
 
 ```toml
