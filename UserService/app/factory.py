@@ -47,7 +47,7 @@ def create_app(
                 await close()
             await close_engine()
 
-    app = FastAPI(title="QZ-FRP User Service", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="FireflyFrp User Service", version="0.1.0", lifespan=lifespan)
     app.state.settings = settings
     app.state.frps = frps
 

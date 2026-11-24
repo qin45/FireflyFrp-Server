@@ -10,9 +10,9 @@ auto_create_tables = false
 
 [database]
 # Production (MySQL):
-url = "mysql+aiomysql://qz:password@127.0.0.1:3306/qz_frp?charset=utf8mb4"
+url = "mysql+aiomysql://fireflyfrp:password@127.0.0.1:3306/fireflyfrp?charset=utf8mb4"
 # Local development without MySQL:
-# url = "sqlite+aiosqlite:///./qz_frp.db"
+# url = "sqlite+aiosqlite:///./fireflyfrp.db"
 
 [frps]
 api_url = "http://127.0.0.1:7500"

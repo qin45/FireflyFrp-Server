@@ -1,7 +1,7 @@
 [project]
-name = "qz-user-service"
+name = "fireflyfrp-user-service"
 version = "0.1.0"
-description = "QZ-FRP user service backend"
+description = "FireflyFrp user service backend"
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.115",

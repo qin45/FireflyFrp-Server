@@ -1,0 +1,21 @@
+FireflyFrp modified frps
+========================
+
+This directory contains modified builds of frps.
+
+Original project: frp
+Upstream: https://github.com/fatedier/frp
+Copyright: The frp Authors
+
+The original frp source is licensed under the Apache License, Version 2.0.
+This modified distribution is also provided under the Apache License, Version 2.0.
+See LICENSE in this directory for the full license text.
+
+Modification source:
+https://github.com/qin45/frp
+Branch: feat/live-traffic-kick
+Commit: e0f615a77558392adb6d5e01b2228196f20688c8
+
+The modifications add live traffic accounting, shared per-user bandwidth
+limiting, and Admin API endpoints for kicking clients/users and updating user
+bandwidth. See README.md for the detailed change list.

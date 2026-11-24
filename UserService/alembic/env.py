@@ -30,7 +30,7 @@ if not database_url:
     try:
         database_url = load_settings().database.url
     except Exception:
-        database_url = "sqlite:///./qz_frp.db"
+        database_url = "sqlite:///./fireflyfrp.db"
 database_url = database_url.replace("+aiomysql", "+pymysql").replace("+aiosqlite", "")
 config.set_main_option("sqlalchemy.url", database_url)
 
