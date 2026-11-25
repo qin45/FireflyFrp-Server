@@ -445,6 +445,7 @@ PUT /api/v2/users/{user}/bandwidth?bytesPerSecond=<n>
 | GET | `/api/v1/tunnels` | 当前用户隧道列表 |
 | POST | `/api/v1/tunnels` | 创建隧道：`{"type","name","local_ip","local_port"}` |
 | GET | `/api/v1/tunnels/{id}` | 单条隧道 |
+| PATCH | `/api/v1/tunnels/{id}` | 修改名称/本地 IP/本地端口；改地址会轮换令牌并返回新 `frpc_config` |
 | DELETE | `/api/v1/tunnels/{id}` | 删除隧道（活跃时先踢下线） |
 | POST | `/api/v1/tunnels/{id}/token` | 轮换隧道令牌 |
 

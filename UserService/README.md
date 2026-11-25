@@ -97,6 +97,7 @@ location /internal/ { deny all; }
 - `POST /api/v1/auth/password`
 - `GET /api/v1/user`
 - `GET/POST /api/v1/tunnels`
+- `PATCH /api/v1/tunnels/{id}` (rename or change the local endpoint)
 - `DELETE /api/v1/tunnels/{id}`
 - `POST /api/v1/tunnels/{id}/token`
 - `GET/PATCH /api/v1/admin/users/{id}`

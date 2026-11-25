@@ -103,3 +103,69 @@ async def test_cannot_delete_other_users_tunnel(client):
         f"/api/v1/tunnels/{tunnel['tunnel']['id']}", headers=auth(bob_token)
     )
     assert response.status_code == 404
+
+
+async def test_update_tunnel_name_and_endpoint(client, app):
+    await register(client)
+    token = await login(client)
+    created = await create_tunnel(client, token, "tcp", name="old", local_port=22)
+    tunnel_id = created["tunnel"]["id"]
+
+    response = await client.patch(
+        f"/api/v1/tunnels/{tunnel_id}",
+        json={"name": "renamed"},
+        headers=auth(token),
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["tunnel"]["name"] == "renamed"
+    assert data["tunnel"]["local_port"] == 22
+    assert data["frpc_config"] is None
+    assert data["token"] is None
+
+    response = await client.patch(
+        f"/api/v1/tunnels/{tunnel_id}",
+        json={"local_ip": "10.0.0.5", "local_port": 2222},
+        headers=auth(token),
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["tunnel"]["local_ip"] == "10.0.0.5"
+    assert data["tunnel"]["local_port"] == 2222
+    assert data["token"]
+    assert 'localIP = "10.0.0.5"' in data["frpc_config"]
+    assert "localPort = 2222" in data["frpc_config"]
+
+    response = await client.get("/api/v1/user", headers=auth(token))
+    listed = [item for item in response.json()["tunnels"] if item["id"] == tunnel_id]
+    assert listed[0]["name"] == "renamed"
+    assert listed[0]["local_port"] == 2222
+
+
+async def test_update_tunnel_rejects_invalid_and_foreign(client):
+    await register(client, "alice")
+    alice_token = await login(client, "alice")
+    tunnel = await create_tunnel(client, alice_token)
+
+    response = await client.patch(
+        f"/api/v1/tunnels/{tunnel['tunnel']['id']}",
+        json={},
+        headers=auth(alice_token),
+    )
+    assert response.status_code == 422
+
+    response = await client.patch(
+        f"/api/v1/tunnels/{tunnel['tunnel']['id']}",
+        json={"local_port": 70000},
+        headers=auth(alice_token),
+    )
+    assert response.status_code == 422
+
+    await register(client, "bob")
+    bob_token = await login(client, "bob")
+    response = await client.patch(
+        f"/api/v1/tunnels/{tunnel['tunnel']['id']}",
+        json={"name": "stolen"},
+        headers=auth(bob_token),
+    )
+    assert response.status_code == 404

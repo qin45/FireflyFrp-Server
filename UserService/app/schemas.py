@@ -30,6 +30,21 @@ class TunnelCreateRequest(BaseModel):
     local_port: int = Field(ge=1, le=65535)
 
 
+class TunnelUpdateRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=64)
+    local_ip: str | None = Field(default=None, min_length=1, max_length=64)
+    local_port: int | None = Field(default=None, ge=1, le=65535)
+
+    @model_validator(mode="after")
+    def at_least_one_field(self) -> "TunnelUpdateRequest":
+        if not any(
+            value is not None
+            for value in (self.name, self.local_ip, self.local_port)
+        ):
+            raise ValueError("at least one field must be provided")
+        return self
+
+
 class TunnelTokenResponse(BaseModel):
     token: str
     frpc_config: str
@@ -103,6 +118,13 @@ class TunnelCreateResponse(BaseModel):
     tunnel: TunnelPublic
     token: str
     frpc_config: str
+
+
+class TunnelUpdateResponse(BaseModel):
+    tunnel: TunnelPublic
+    # Present only when the local endpoint changed and the token was rotated.
+    token: str | None = None
+    frpc_config: str | None = None
 
 
 class PageResponse(BaseModel):

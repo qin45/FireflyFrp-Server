@@ -287,6 +287,78 @@ async def delete_tunnel(
     await db.commit()
 
 
+async def update_tunnel(
+    db: AsyncSession,
+    settings: Settings,
+    frps: FrpsAPI,
+    user: User,
+    tunnel_id: str,
+    name: str | None = None,
+    local_ip: str | None = None,
+    local_port: int | None = None,
+) -> tuple[Tunnel, str | None, str | None]:
+    """Update tunnel metadata.
+
+    Changing the local endpoint requires a new frpc configuration, so the
+    tunnel token is rotated and active sessions are kicked. A name-only change
+    keeps the token untouched.
+    """
+    tunnel = await db.scalar(
+        select(Tunnel).where(
+            Tunnel.id == tunnel_id,
+            Tunnel.user_id == user.id,
+            Tunnel.status != "deleted",
+        )
+    )
+    if tunnel is None:
+        raise HTTPException(status_code=404, detail="tunnel not found")
+
+    endpoint_changed = (
+        (local_ip is not None and local_ip != tunnel.local_ip)
+        or (local_port is not None and local_port != tunnel.local_port)
+    )
+
+    if name is not None:
+        tunnel.name = name
+    if local_ip is not None:
+        tunnel.local_ip = local_ip
+    if local_port is not None:
+        tunnel.local_port = local_port
+
+    if not endpoint_changed:
+        await db.commit()
+        await db.refresh(tunnel)
+        return tunnel, None, None
+
+    await _end_active_sessions(db, frps, user, tunnel)
+    token = new_token()
+    tunnel.token_hash = hash_token(token)
+    await db.commit()
+    await db.refresh(tunnel)
+    return tunnel, token, build_frpc_config(tunnel, token, user.username, settings)
+
+
+async def _end_active_sessions(
+    db: AsyncSession, frps: FrpsAPI, user: User, tunnel: Tunnel
+) -> None:
+    sessions = (
+        await db.scalars(
+            select(TunnelSession).where(
+                TunnelSession.tunnel_id == tunnel.id,
+                TunnelSession.status.in_(["active", "closing"]),
+            )
+        )
+    ).all()
+    for session in sessions:
+        try:
+            await frps.kick_client(f"{user.username}.{session.client_id or tunnel.id}")
+        except Exception:  # noqa: BLE001
+            pass
+        session.status = "ended"
+        session.ended_at = utcnow()
+    tunnel.status = "inactive"
+
+
 async def rotate_token(
     db: AsyncSession,
     settings: Settings,
@@ -304,22 +376,7 @@ async def rotate_token(
     if tunnel is None:
         raise HTTPException(status_code=404, detail="tunnel not found")
 
-    sessions = (
-        await db.scalars(
-            select(TunnelSession).where(
-                TunnelSession.tunnel_id == tunnel.id,
-                TunnelSession.status.in_(["active", "closing"]),
-            )
-        )
-    ).all()
-    for session in sessions:
-        try:
-            await frps.kick_client(f"{user.username}.{session.client_id or tunnel.id}")
-        except Exception:  # noqa: BLE001
-            pass
-        session.status = "ended"
-        session.ended_at = utcnow()
-    tunnel.status = "inactive"
+    await _end_active_sessions(db, frps, user, tunnel)
 
     token = new_token()
     tunnel.token_hash = hash_token(token)

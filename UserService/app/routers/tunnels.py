@@ -8,7 +8,13 @@ from ..config import Settings
 from ..db import get_db
 from ..deps import get_current_user, get_settings
 from ..models import Tunnel, User
-from ..schemas import TunnelCreateRequest, TunnelCreateResponse, TunnelTokenResponse
+from ..schemas import (
+    TunnelCreateRequest,
+    TunnelCreateResponse,
+    TunnelTokenResponse,
+    TunnelUpdateRequest,
+    TunnelUpdateResponse,
+)
 from ..services import tunnel_service
 
 router = APIRouter(prefix="/api/v1/tunnels", tags=["tunnels"])
@@ -40,6 +46,32 @@ async def create_tunnel(
 ) -> dict:
     tunnel, token, frpc_config = await tunnel_service.create_tunnel(
         db, settings, request.app.state.frps, user, payload
+    )
+    return {
+        "tunnel": await tunnel_service.tunnel_public(db, tunnel, settings),
+        "token": token,
+        "frpc_config": frpc_config,
+    }
+
+
+@router.patch("/{tunnel_id}", response_model=TunnelUpdateResponse)
+async def update_tunnel(
+    tunnel_id: str,
+    payload: TunnelUpdateRequest,
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> dict:
+    tunnel, token, frpc_config = await tunnel_service.update_tunnel(
+        db,
+        settings,
+        request.app.state.frps,
+        user,
+        tunnel_id,
+        name=payload.name,
+        local_ip=payload.local_ip,
+        local_port=payload.local_port,
     )
     return {
         "tunnel": await tunnel_service.tunnel_public(db, tunnel, settings),
